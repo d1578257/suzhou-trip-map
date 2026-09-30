@@ -209,7 +209,7 @@
 </svg>
 <div class="maphint">🔍 点按全屏 · 点景点可导航</div>
 </div>
-<p class="foot">图例：紫/橙/绿虚线=D1/D2/D3路线 · 数字=游览顺序 · 金点=美食 · 白圈=地铁站（大圈=换乘站）<br>👆 地图上<b>点景点圆点/名称</b>、行程里点 <a class="navlink" href="#">🧭</a> 可直接跳高德地图导航（没装高德会打开网页版）</p>
+<p class="foot">图例：紫/橙/绿虚线=D1/D2/D3路线 · 数字=游览顺序 · 金点=美食 · 白圈=地铁站（大圈=换乘站）<br>👆 地图上<b>点景点圆点/名称</b>、行程里点 <a class="navlink" href="#">🧭</a> 直接唤起<b>高德App</b>（微信里先点右上角「···」→在浏览器打开；没装App自动转网页版）</p>
 </section>
 
 <section id="ov">
@@ -394,6 +394,69 @@
     s = ns; tx = mx - cx*s; ty = my - cy*s;
     apply();
   }, {passive:false});
+})();
+</script>
+<script>
+/* 点击链接直接唤起高德App；微信内提示用浏览器打开 */
+(function(){
+  var UA = navigator.userAgent;
+  var MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(UA);
+  var WECHAT = /MicroMessenger/i.test(UA);
+  var IOS = /iPhone|iPad|iPod/i.test(UA) || (/Macintosh/i.test(UA) && 'ontouchend' in document);
+  if(!MOBILE) return;
+
+  var tipBox = null;
+  function closeTip(){ if(tipBox){ tipBox.remove(); tipBox = null; } }
+  function wxTip(url){
+    if(tipBox) return;
+    tipBox = document.createElement('div');
+    tipBox.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    tipBox.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:340px;width:100%;padding:20px 22px;font-size:15px;line-height:1.8;color:#1F2937;box-shadow:0 8px 30px rgba(0,0,0,.25);">'
+      + '<div style="font-weight:700;font-size:16px;margin-bottom:6px;">📱 微信内无法直接唤起高德App</div>'
+      + '<div>① 点右上角 <b>「···」</b><br>② 选 <b>「在浏览器打开」</b><br>③ 再点这个链接 → 直接进高德App</div>'
+      + '<button id="wxweb" style="margin-top:14px;width:100%;padding:10px 0;border:0;border-radius:10px;background:#1D6FB8;color:#fff;font-size:15px;">继续用网页版导航</button>'
+      + '<button id="wxclose" style="margin-top:8px;width:100%;padding:8px 0;border:0;background:none;color:#6B7280;font-size:14px;">取消</button></div>';
+    tipBox.addEventListener('click', function(e){ if(e.target === tipBox) closeTip(); });
+    document.body.appendChild(tipBox);
+    tipBox.querySelector('#wxweb').onclick = function(){ window.location.href = url; };
+    tipBox.querySelector('#wxclose').onclick = closeTip;
+  }
+
+  function launch(scheme, web){
+    var t0 = Date.now();
+    var timer = setTimeout(function(){
+      if(!document.hidden && Date.now() - t0 < 1800) window.location.href = web;
+    }, 1100);
+    document.addEventListener('visibilitychange', function(){ if(document.hidden) clearTimeout(timer); }, {once:true});
+    window.addEventListener('pagehide', function(){ clearTimeout(timer); }, {once:true});
+    if(IOS){
+      window.location.href = scheme;
+    } else {
+      var f = document.createElement('iframe');
+      f.style.display = 'none';
+      f.src = scheme;
+      document.body.appendChild(f);
+      setTimeout(function(){ f.remove(); }, 2500);
+    }
+  }
+
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest ? e.target.closest('a') : null;
+    if(!a) return;
+    var href = a.getAttribute('href') || '';
+    if(href.indexOf('uri.amap.com') === -1) return;
+    e.preventDefault();
+    if(WECHAT){ wxTip(href); return; }
+    var m = href.match(/[?&]to=([0-9.]+),([0-9.]+),([^&]+)/);
+    if(!m){ window.location.href = href; return; }
+    var lon = m[1], lat = m[2], name = m[3];
+    try { name = decodeURIComponent(name); } catch(_) {}
+    var scheme = (IOS ? 'iosamap://view?' : 'androidamap://view?')
+      + 'sourceApplication=' + encodeURIComponent('苏州四日游')
+      + '&poiname=' + encodeURIComponent(name)
+      + '&lat=' + lat + '&lon=' + lon + '&dev=0';
+    launch(scheme, href);
+  }, false);
 })();
 </script>
 </body>
